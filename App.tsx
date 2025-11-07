@@ -132,7 +132,11 @@ const App: React.FC = () => {
     } catch (error) {
       console.error("Failed to update book status:", error);
       setAllBooks(originalBooks); // Revert on error
-      setError(`Failed to update book status. Please try again.`);
+      if (error instanceof Error) {
+        alert(error.message); // Use alert to show the specific error from the backend.
+      } else {
+        alert('An unexpected error occurred. Please try again.');
+      }
     }
   }, [allBooks, currentUser, isAdmin]);
 
