@@ -1,4 +1,9 @@
 
+export interface BorrowRecord {
+  userId: string;
+  dueDate: string;
+}
+
 export interface Book {
   id: string;
   title: string;
@@ -6,8 +11,9 @@ export interface Book {
   cover: string;
   category: string;
   available: boolean;
-  dueDate: string | null;
-  borrowedBy: string | null;
+  borrowRecords: BorrowRecord[];
+  count: number; // Total number of copies
+  availableCount: number; // Number of copies currently available
 }
 
 export interface Category {

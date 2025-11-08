@@ -35,12 +35,18 @@ const placeholderDataUrl = `data:image/svg+xml;base64,${btoa(placeholderSvg)}`;
 const BookCard: React.FC<BookCardProps> = ({ book, onBorrowReturn, isLoggedIn, isAdmin, onDeleteBook, currentUser }) => {
 
   const getStatusTextAndColor = () => {
+    const availableText = book.availableCount > 0 
+      ? `Available (${book.availableCount}/${book.count} copies)` 
+      : 'No copies available';
+    
     if (book.available) {
-      return { text: 'Available', color: 'text-green-600' };
+      return { text: availableText, color: 'text-green-600' };
     }
 
-    if (book.dueDate) {
-      const dueDate = new Date(book.dueDate);
+    // Check if current user has borrowed this book
+    const userBorrowRecord = book.borrowRecords.find(record => record.userId === currentUser?.id);
+    if (userBorrowRecord) {
+      const dueDate = new Date(userBorrowRecord.dueDate);
       const now = new Date();
       const isOverdue = now > dueDate;
       
@@ -69,7 +75,7 @@ const BookCard: React.FC<BookCardProps> = ({ book, onBorrowReturn, isLoggedIn, i
       };
     }
 
-    if (book.available) {
+    if (book.availableCount > 0) {
       return {
         text: 'Borrow',
         disabled: false,
@@ -78,11 +84,13 @@ const BookCard: React.FC<BookCardProps> = ({ book, onBorrowReturn, isLoggedIn, i
       };
     }
 
-    const isBorrowedByMe = currentUser && book.borrowedBy === currentUser.id;
+    const userBorrowRecord = book.borrowRecords.find(record => record.userId === currentUser?.id);
+    const isBorrowedByMe = !!userBorrowRecord;
+    
     if (isBorrowedByMe || isAdmin) {
       let buttonText = 'Return';
-      if (book.dueDate) {
-        const dueDate = new Date(book.dueDate);
+      if (userBorrowRecord) {
+        const dueDate = new Date(userBorrowRecord.dueDate);
         const now = new Date();
         if (now > dueDate) {
           const timeDiff = now.getTime() - dueDate.getTime();

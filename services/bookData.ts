@@ -139,6 +139,9 @@ const bookData: Book[] = bookListText.split('\n').map((line): Book | null => {
 
     const id = crypto.randomUUID();
     
+    // Parse the count from the second column, default to 1 if not found
+    const count = parseInt(parts[1]?.trim() || '1', 10);
+    
     return {
         id,
         title,
@@ -146,8 +149,9 @@ const bookData: Book[] = bookListText.split('\n').map((line): Book | null => {
         category,
         cover: `https://picsum.photos/seed/${title.replace(/\s+/g, '-')}-${id}/400/600`,
         available: true,
-        dueDate: null,
-        borrowedBy: null,
+        borrowRecords: [],
+        count: count,
+        availableCount: count,
     };
 }).filter((book): book is Book => book !== null);
 
