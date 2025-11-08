@@ -10,9 +10,10 @@ export const fetchBooks = async (): Promise<Book[]> => {
   return [...books].sort((a, b) => a.title.localeCompare(b.title));
 };
 
-export const addBook = async (bookData: { title: string; author: string; category: string }): Promise<Book> => {
+export const addBook = async (bookData: { title: string; author: string; category: string; count?: number }): Promise<Book> => {
     await delay(200);
     const id = crypto.randomUUID();
+    const count = bookData.count || 1;
     const newBook: Book = {
         id,
         title: bookData.title,
@@ -20,8 +21,9 @@ export const addBook = async (bookData: { title: string; author: string; categor
         category: bookData.category,
         available: true,
         cover: `https://picsum.photos/seed/${bookData.title.replace(/\s+/g, '-')}-${id}/400/600`,
-        dueDate: null,
-        borrowedBy: null,
+        borrowRecords: [],
+        count: count, // Total number of copies
+        availableCount: count // Initially all copies are available
     };
     books.unshift(newBook);
     return newBook;
@@ -36,33 +38,68 @@ export const updateBookAvailability = async (bookId: string, available: boolean,
     }
     
     const originalBook = books[bookIndex];
-    let dueDate: string | null = originalBook.dueDate;
-    let borrowedBy: string | null = originalBook.borrowedBy;
+    let availableCount = originalBook.availableCount;
+    let borrowRecords = [...originalBook.borrowRecords];
 
     if (!available) { // Book is being borrowed
-        // RACE CONDITION PREVENTION: Check if book is available right before updating.
-        if (!originalBook.available) {
-            throw new Error("Sorry, this book was just borrowed by another user.");
+        if (!userId) {
+            throw new Error("User ID is required to borrow a book");
         }
 
+        // Check if there are any copies available
+        if (availableCount <= 0) {
+            throw new Error("Sorry, no copies of this book are currently available.");
+        }
+
+        // Decrease the available count when borrowing
+        availableCount--;
+        
+        // Add borrow record
         const newDueDate = new Date();
         newDueDate.setDate(newDueDate.getDate() + 15);
-        dueDate = newDueDate.toISOString();
-        borrowedBy = userId;
+        borrowRecords.push({
+            userId: userId,
+            dueDate: newDueDate.toISOString()
+        });
+
+        const updatedBook = { 
+            ...originalBook, 
+            available: availableCount > 0,
+            borrowRecords,
+            availableCount
+        };
+        books[bookIndex] = updatedBook;
+        return updatedBook;
     } else { // Book is being returned
-        // BACKEND VALIDATION: The frontend already prevents non-borrowers from returning,
-        // but this backend check is crucial for data integrity. The admin has id 'admin'.
-        if (userId !== 'admin' && originalBook.borrowedBy !== userId) {
+        if (!userId) {
+            throw new Error("User ID is required to return a book");
+        }
+
+        // Find the borrow record for this user
+        const borrowRecordIndex = borrowRecords.findIndex(record => record.userId === userId);
+        
+        // BACKEND VALIDATION
+        if (userId !== 'admin' && borrowRecordIndex === -1) {
             throw new Error("You cannot return a book you did not borrow.");
         }
-        dueDate = null;
-        borrowedBy = null;
-    }
 
-    const updatedBook = { ...originalBook, available, dueDate, borrowedBy };
-    books[bookIndex] = updatedBook;
-    
-    return updatedBook;
+        // Remove the borrow record
+        if (borrowRecordIndex !== -1) {
+            borrowRecords.splice(borrowRecordIndex, 1);
+        }
+
+        // Increase the available count when returning
+        availableCount++;
+
+        const updatedBook = { 
+            ...originalBook, 
+            available: true,
+            borrowRecords,
+            availableCount
+        };
+        books[bookIndex] = updatedBook;
+        return updatedBook;
+    }
 };
 
 export const deleteBook = async (bookId: string): Promise<void> => {
